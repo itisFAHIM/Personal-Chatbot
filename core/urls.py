@@ -1,6 +1,7 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from agent.views import chat_home, chat_api, get_chat_sessions, get_session_messages
+from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -8,4 +9,6 @@ urlpatterns = [
     path('api/chat/', chat_api, name='chat_api'),
     path('api/sessions/', get_chat_sessions, name='get_sessions'),
     path('api/sessions/<uuid:session_id>/', get_session_messages, name='get_session_messages'),
+    
+    path('accounts/', include('accounts.urls')),  
 ]

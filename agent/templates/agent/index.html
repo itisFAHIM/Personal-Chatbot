@@ -62,9 +62,16 @@
     <div class="header">
         <h1>FAHIM_Code_Korbi Agent</h1>
         <div class="header-actions">
-            <button class="btn-icon" title="Settings">⚙️</button>
-            <button class="btn-icon" title="Clear Chat" onclick="newChat()">🗑️</button>
-        </div>
+    <button class="btn-icon" title="Settings">⚙️</button>
+    <button class="btn-icon" title="Clear Chat" onclick="newChat()">🗑️</button>
+
+    <form action="{% url 'logout' %}" method="post" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn-icon" title="Sign Out" style="color: #f87171;">
+            🚪
+        </button>
+    </form>
+</div>
     </div>
 
     <div class="main-container">
