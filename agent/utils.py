@@ -1,8 +1,9 @@
 import os
+from django.conf import settings
 
 def read_local_file(file_path):
     # Security check: Only allow reading files in your project directory
-    base_dir = "F:\\Fahm_Code_Korbi"
+    base_dir = settings.BASE_DIR
     full_path = os.path.join(base_dir, file_path)
     
     if os.path.exists(full_path):

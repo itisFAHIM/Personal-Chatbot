@@ -85,14 +85,22 @@
 
             <div class="input-container">
                 <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="user-input" 
-                        placeholder="Ask Korbi to code something..."
-                        onkeypress="if(event.key === 'Enter') sendMessage()"
-                    >
-                    <button class="send-btn" onclick="sendMessage()">Send</button>
-                </div>
+    <input type="file" id="file-upload" style="display: none" onchange="handleFileUpload()">
+    
+    <button class="btn-icon" onclick="document.getElementById('file-upload').click()" title="Upload Code File">
+        📎
+    </button>
+
+    <input 
+        type="text" 
+        id="user-input" 
+        placeholder="Ask Korbi to code something..."
+        onkeypress="if(event.key === 'Enter') sendMessage()"
+    >
+    <button class="send-btn" onclick="sendMessage()">Send</button>
+</div>
+
+<div id="file-preview" style="display: none; padding: 10px; color: #4ade80; font-size: 13px;"></div>
             </div>
         </div>
     </div>
@@ -100,6 +108,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
+        let uploadedFileContent = "";
+
+function handleFileUpload() {
+    const fileInput = document.getElementById('file-upload');
+    const file = fileInput.files[0];
+    const preview = document.getElementById('file-preview');
+
+    if (file) {
+        const reader = new FileReader();
+        
+        // When file is read, save its text
+        reader.onload = function(e) {
+            uploadedFileContent = `\n\n--- UPLOADED FILE: ${file.name} ---\n${e.target.result}\n----------------\n`;
+            
+            // Show preview
+            preview.style.display = 'block';
+            preview.innerText = `📎 Attached: ${file.name}`;
+            preview.scrollIntoView();
+        };
+        
+        reader.readAsText(file);
+    }
+}
         let currentSessionId = null;
 
         // Load chat sessions on page load
@@ -207,94 +238,104 @@
             }
         }
 
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const chatMessages = document.getElementById('chat-messages');
-            const message = input.value.trim();
-            
-            if (!message) return;
+async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const chatMessages = document.getElementById('chat-messages');
+    let finalMessage = input.value.trim(); // Keep original for display
 
-            // Add user message to UI
-            addMessageToUI('user', message);
-            
-            input.value = '';
-            input.disabled = true;
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+    // If there is a file, append it hiddenly to the message sent to backend
+    let backendMessage = finalMessage;
+    if (uploadedFileContent) {
+        backendMessage += uploadedFileContent;
+        // Clear the upload after sending
+        uploadedFileContent = ""; 
+        document.getElementById('file-preview').style.display = 'none';
+        document.getElementById('file-upload').value = ""; // Reset input
+    }
 
-            // Add typing indicator
-            const typingEl = document.createElement('div');
-            typingEl.className = 'message bot-message';
-            typingEl.id = 'typing-indicator';
-            typingEl.innerHTML = `
-                <div class="message-avatar bot-avatar">K</div>
-                <div class="message-content">
-                    <div class="message-role">Korbi</div>
-                    <div class="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            `;
-            chatMessages.appendChild(typingEl);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+    if (!finalMessage && !uploadedFileContent) return; // Don't send empty
 
-            try {
-                const response = await fetch('/api/chat/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        session_id: currentSessionId
-                    })
-                });
+    // Add user message to UI
+    addMessageToUI('user', finalMessage);
 
-                const data = await response.json();
-                
-                // Remove typing indicator
-                document.getElementById('typing-indicator').remove();
+    input.value = '';
+    input.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                // Update current session ID
-                currentSessionId = data.session_id;
+    // Add typing indicator
+    const typingEl = document.createElement('div');
+    typingEl.className = 'message bot-message';
+    typingEl.id = 'typing-indicator';
+    typingEl.innerHTML = `
+        <div class="message-avatar bot-avatar">K</div>
+        <div class="message-content">
+            <div class="message-role">Korbi</div>
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    `;
+    chatMessages.appendChild(typingEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                // Add bot response
-                addMessageToUI('assistant', data.response);
-                
-                // Reload chat sessions to update sidebar
-                await loadChatSessions();
-                
-                // Mark current session as active
-                document.querySelectorAll('.chat-history-item').forEach(item => {
-                    if (item.dataset.sessionId === currentSessionId) {
-                        item.classList.add('active');
-                    }
-                });
+    try {
+        const response = await fetch('/api/chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: backendMessage,
+                session_id: currentSessionId
+            })
+        });
 
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            } catch (error) {
-                const typing = document.getElementById('typing-indicator');
-                if (typing) typing.remove();
+        const data = await response.json();
+        
+        // Remove typing indicator
+        document.getElementById('typing-indicator').remove();
 
-                const errorEl = document.createElement('div');
-                errorEl.className = 'message bot-message';
-                errorEl.innerHTML = `
-                    <div class="message-avatar bot-avatar">K</div>
-                    <div class="message-content">
-                        <div class="message-role">Korbi</div>
-                        <div class="message-text" style="color: #f87171;">
-                            Sorry, I encountered an error: ${error.message}
-                        </div>
-                    </div>
-                `;
-                chatMessages.appendChild(errorEl);
-            } finally {
-                input.disabled = false;
-                input.focus();
+        // Update current session ID
+        currentSessionId = data.session_id;
+
+        // Add bot response
+        addMessageToUI('assistant', data.response);
+        
+        // Reload chat sessions to update sidebar
+        await loadChatSessions();
+        
+        // Mark current session as active
+        document.querySelectorAll('.chat-history-item').forEach(item => {
+            if (item.dataset.sessionId === currentSessionId) {
+                item.classList.add('active');
             }
-        }
+        });
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    } catch (error) {
+        const typing = document.getElementById('typing-indicator');
+        if (typing) typing.remove();
+
+        const errorEl = document.createElement('div');
+        errorEl.className = 'message bot-message';
+        errorEl.innerHTML = `
+            <div class="message-avatar bot-avatar">K</div>
+            <div class="message-content">
+                <div class="message-role">Korbi</div>
+                <div class="message-text" style="color: #f87171;">
+                    Sorry, I encountered an error: ${error.message}
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(errorEl);
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+}
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -316,6 +357,7 @@
             }
             return cookieValue;
         }
+        
     </script>
 </body>
 </html>
