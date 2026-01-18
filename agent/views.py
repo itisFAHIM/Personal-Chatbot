@@ -97,7 +97,15 @@ from django.http import StreamingHttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from .ai_logic import get_korbi_response_stream
 from .models import ChatSession, ChatMessage
+from .rag import index_project_code
 import json
+
+@login_required
+def trigger_indexing(request):
+    if request.method == "POST":
+        status = index_project_code()
+        return JsonResponse({'status': status})
+    return JsonResponse({'status': 'Invalid request'})
 
 @login_required
 def chat_home(request):

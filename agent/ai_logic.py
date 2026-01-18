@@ -43,6 +43,7 @@
 import ollama
 import re
 from .utils import read_local_file
+from .rag import search_codebase
 
 def get_korbi_response_stream(user_message, history):
     # System Prompt
@@ -53,6 +54,34 @@ def get_korbi_response_stream(user_message, history):
         2. Provide full, runnable examples in Markdown.
         3. Be concise."""
     }
+
+    # --- 1. DIRECT FILE READ (@read) ---
+    files_to_read = re.findall(r'@read\s+([\w./\\-]+)', user_message)
+    manual_context = ""
+    if files_to_read:
+        for filename in files_to_read:
+            manual_context += f"\n\n--- FILE: {filename} ---\n{read_local_file(filename)}\n"
+
+    # --- 2. AUTOMATIC RAG SEARCH ---
+    # We search the codebase for EVERY query to see if anything is relevant
+    # (Unless the user specifically asked to just @read a file)
+    rag_context = ""
+    if not files_to_read and len(user_message) > 10:
+        try:
+            rag_context = search_codebase(user_message, n_results=2)
+        except Exception as e:
+            print(f"RAG Error: {e}")
+
+    # Combine Contexts
+    full_context = manual_context + rag_context
+    if full_context:
+        user_message += f"\n\nCONTEXT FROM YOUR CODEBASE:\n{full_context}"
+
+    messages = [system_prompt] + history + [{'role': 'user', 'content': user_message}]
+
+    stream = ollama.chat(model='gemma3:4b', messages=messages, stream=True)
+    for chunk in stream:
+        yield chunk['message']['content']
     
     # --- TOOL USE LOGIC ---
     files_to_read = re.findall(r'@read\s+([\w./\\-]+)', user_message)
