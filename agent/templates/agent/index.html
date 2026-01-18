@@ -8,9 +8,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif; background: #1a1a1a; color: #e4e4e7; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .header { background: #2a2a2a; padding: 16px 24px; border-bottom: 1px solid #3a3a3a; display: flex; align-items: center; justify-content: space-between; }
+        .header { background: #2a2a2a; padding: 16px 24px; border-bottom: 1px solid #3a3a3a; display: flex; align-items: center; justify-content: center; position: relative; }
         .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
-        .header-actions { display: flex; gap: 12px; }
+        .header-actions { display: flex; gap: 12px; position: absolute; right: 24px; }
         .btn-icon { background: transparent; border: none; color: #a1a1aa; cursor: pointer; padding: 8px; border-radius: 6px; transition: all 0.2s; }
         .btn-icon:hover { background: #3a3a3a; color: #fff; }
         .main-container { flex: 1; display: flex; overflow: hidden; }
@@ -60,7 +60,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>FAHIM_Code_Korbi Agent</h1>
+        <h1>Kire Code Korbi Naki</h1>
         <div class="header-actions">
     <button class="btn-icon" title="Settings">⚙️</button>
     <button class="btn-icon" title="Clear Chat" onclick="newChat()">🗑️</button>
@@ -124,12 +124,11 @@ function handleFileUpload() {
 
     if (file) {
         const reader = new FileReader();
-        
-        // When file is read, save its text
+    
         reader.onload = function(e) {
             uploadedFileContent = `\n\n--- UPLOADED FILE: ${file.name} ---\n${e.target.result}\n----------------\n`;
             
-            // Show preview
+            
             preview.style.display = 'block';
             preview.innerText = `📎 Attached: ${file.name}`;
             preview.scrollIntoView();
@@ -140,7 +139,6 @@ function handleFileUpload() {
 }
         let currentSessionId = null;
 
-        // Load chat sessions on page load
         window.addEventListener('DOMContentLoaded', loadChatSessions);
 
         async function loadChatSessions() {
@@ -177,7 +175,7 @@ function handleFileUpload() {
                 const chatMessages = document.getElementById('chat-messages');
                 chatMessages.innerHTML = '';
                 
-                // Mark active session in sidebar
+             
                 document.querySelectorAll('.chat-history-item').forEach(item => {
                     item.classList.remove('active');
                     if (item.dataset.sessionId === sessionId) {
@@ -185,7 +183,7 @@ function handleFileUpload() {
                     }
                 });
                 
-                // Display messages
+                
                 data.messages.forEach(msg => {
                     addMessageToUI(msg.role, msg.content);
                 });
@@ -206,7 +204,7 @@ function handleFileUpload() {
                 </div>
             `;
             
-            // Remove active class from all history items
+          
             document.querySelectorAll('.chat-history-item').forEach(item => {
                 item.classList.remove('active');
             });
@@ -215,7 +213,7 @@ function handleFileUpload() {
         function addMessageToUI(role, content) {
             const chatMessages = document.getElementById('chat-messages');
             
-            // Remove empty state if it exists
+            
             const emptyState = chatMessages.querySelector('.empty-state');
             if (emptyState) {
                 emptyState.remove();
@@ -238,7 +236,7 @@ function handleFileUpload() {
             chatMessages.appendChild(messageEl);
             
             if (!isUser) {
-                // Highlight code blocks
+               
                 messageEl.querySelectorAll('pre code').forEach((block) => {
                     hljs.highlightElement(block);
                 });
@@ -248,28 +246,28 @@ function handleFileUpload() {
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const chatMessages = document.getElementById('chat-messages');
-    let finalMessage = input.value.trim(); // Keep original for display
+    let finalMessage = input.value.trim(); 
 
-    // If there is a file, append it hiddenly to the message sent to backend
+    
     let backendMessage = finalMessage;
     if (uploadedFileContent) {
         backendMessage += uploadedFileContent;
-        // Clear the upload after sending
+        
         uploadedFileContent = ""; 
         document.getElementById('file-preview').style.display = 'none';
-        document.getElementById('file-upload').value = ""; // Reset input
+        document.getElementById('file-upload').value = ""; 
     }
 
-    if (!finalMessage && !uploadedFileContent) return; // Don't send empty
+    if (!finalMessage && !uploadedFileContent) return; 
 
-    // Add user message to UI
+    
     addMessageToUI('user', finalMessage);
 
     input.value = '';
     input.disabled = true;
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Add typing indicator
+ 
     const typingEl = document.createElement('div');
     typingEl.className = 'message bot-message';
     typingEl.id = 'typing-indicator';
@@ -302,19 +300,19 @@ async function sendMessage() {
 
         const data = await response.json();
         
-        // Remove typing indicator
+        
         document.getElementById('typing-indicator').remove();
 
-        // Update current session ID
+        
         currentSessionId = data.session_id;
 
-        // Add bot response
+        
         addMessageToUI('assistant', data.response);
         
-        // Reload chat sessions to update sidebar
+        
         await loadChatSessions();
         
-        // Mark current session as active
+        
         document.querySelectorAll('.chat-history-item').forEach(item => {
             if (item.dataset.sessionId === currentSessionId) {
                 item.classList.add('active');
