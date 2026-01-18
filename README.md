@@ -9,6 +9,14 @@ A local AI coding assistant built with **Django** and **Ollama (Gemma 3:4b)**. T
 
 ## How to Run Locally
 
+## Install Dependencies
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+
+## Run the Server
+   python manage.py runserver
+
 1. **Clone the repo:**
    ```bash
    git clone [https://github.com/itisFAHIM/Personal-Chatbot.git](https://github.com/itisFAHIM/Personal-Chatbot.git)
