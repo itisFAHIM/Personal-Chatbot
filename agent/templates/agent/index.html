@@ -244,103 +244,103 @@ function handleFileUpload() {
         }
 
 async function sendMessage() {
-    const input = document.getElementById('user-input');
-    const chatMessages = document.getElementById('chat-messages');
-    let finalMessage = input.value.trim(); 
-
-    
-    let backendMessage = finalMessage;
-    if (uploadedFileContent) {
-        backendMessage += uploadedFileContent;
-        
-        uploadedFileContent = ""; 
-        document.getElementById('file-preview').style.display = 'none';
-        document.getElementById('file-upload').value = ""; 
-    }
-
-    if (!finalMessage && !uploadedFileContent) return; 
-
-    
-    addMessageToUI('user', finalMessage);
-
-    input.value = '';
-    input.disabled = true;
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
- 
-    const typingEl = document.createElement('div');
-    typingEl.className = 'message bot-message';
-    typingEl.id = 'typing-indicator';
-    typingEl.innerHTML = `
-        <div class="message-avatar bot-avatar">K</div>
-        <div class="message-content">
-            <div class="message-role">Korbi</div>
-            <div class="typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-            </div>
-        </div>
-    `;
-    chatMessages.appendChild(typingEl);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    try {
-        const response = await fetch('/api/chat/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                message: backendMessage,
-                session_id: currentSessionId
-            })
-        });
-
-        const data = await response.json();
-        
-        
-        document.getElementById('typing-indicator').remove();
-
-        
-        currentSessionId = data.session_id;
-
-        
-        addMessageToUI('assistant', data.response);
-        
-        
-        await loadChatSessions();
-        
-        
-        document.querySelectorAll('.chat-history-item').forEach(item => {
-            if (item.dataset.sessionId === currentSessionId) {
-                item.classList.add('active');
+            const input = document.getElementById('user-input');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            let finalMessage = input.value.trim();
+            let backendMessage = finalMessage;
+            
+            if (uploadedFileContent) {
+                backendMessage += uploadedFileContent;
+                uploadedFileContent = "";
+                document.getElementById('file-preview').style.display = 'none';
+                document.getElementById('file-upload').value = "";
             }
-        });
 
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    } catch (error) {
-        const typing = document.getElementById('typing-indicator');
-        if (typing) typing.remove();
+            if (!finalMessage && !backendMessage) return;
 
-        const errorEl = document.createElement('div');
-        errorEl.className = 'message bot-message';
-        errorEl.innerHTML = `
-            <div class="message-avatar bot-avatar">K</div>
-            <div class="message-content">
-                <div class="message-role">Korbi</div>
-                <div class="message-text" style="color: #f87171;">
-                    Sorry, I encountered an error: ${error.message}
-                </div>
-            </div>
-        `;
-        chatMessages.appendChild(errorEl);
-    } finally {
-        input.disabled = false;
-        input.focus();
-    }
-}
+            // Add User Message
+            addMessageToUI('user', finalMessage);
+            input.value = '';
+            input.disabled = true;
+
+            // Create Placeholder for Bot Response
+            const botMessageId = 'msg-' + Date.now();
+            const botMessageEl = document.createElement('div');
+            botMessageEl.className = 'message bot-message';
+            botMessageEl.innerHTML = `
+                <div class="message-avatar bot-avatar">K</div>
+                <div class="message-content">
+                    <div class="message-role">Korbi</div>
+                    <div class="message-text" id="${botMessageId}">
+                        <div class="typing-indicator">
+                            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                        </div>
+                    </div>
+                </div>`;
+            chatMessages.appendChild(botMessageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ message: backendMessage, session_id: currentSessionId })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let botTextEl = document.getElementById(botMessageId);
+                let fullText = "";
+                let isFirstChunk = true;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    
+                    // Handle the first line containing session metadata
+                    if (isFirstChunk) {
+                        const splitChunk = chunk.split('\n');
+                        if (splitChunk.length > 1) {
+                            try {
+                                const metadata = JSON.parse(splitChunk[0]);
+                                currentSessionId = metadata.session_id;
+                                // Reload sidebar if it was a new chat
+                                if (document.querySelectorAll('.chat-history-item').length === 0 || 
+                                    document.querySelector('.empty-history')) {
+                                    loadChatSessions();
+                                }
+                                fullText += splitChunk.slice(1).join('\n');
+                            } catch(e) { fullText += chunk; }
+                        } else { fullText += chunk; }
+                        
+                        botTextEl.innerHTML = ""; // Clear typing indicator
+                        isFirstChunk = false;
+                    } else {
+                        fullText += chunk;
+                    }
+
+                    // Update UI with Markdown parsing
+                    botTextEl.innerHTML = marked.parse(fullText);
+                    
+                    // Re-highlight code blocks
+                    botTextEl.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                    
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+
+            } catch (error) {
+                console.error(error);
+                // Handle error UI...
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
