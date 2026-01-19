@@ -98,6 +98,7 @@ from django.contrib.auth.decorators import login_required
 from .ai_logic import get_korbi_response_stream
 from .models import ChatSession, ChatMessage
 from .rag import index_project_code
+from django.shortcuts import get_object_or_404
 import json
 
 @login_required
@@ -172,7 +173,7 @@ def chat_api(request):
 
 @login_required
 def get_chat_sessions(request):
-    sessions = ChatSession.objects.filter(user=request.user)
+    sessions = ChatSession.objects.filter(user=request.user, is_active=True).order_by('-updated_at')
     sessions_data = [
         {
             'session_id': str(session.session_id),
@@ -182,6 +183,18 @@ def get_chat_sessions(request):
         for session in sessions
     ]
     return JsonResponse({'sessions': sessions_data})
+
+@login_required
+def delete_chat_session(request, session_id):
+    if request.method == "POST":
+        
+        session = get_object_or_404(ChatSession, session_id=session_id, user=request.user)
+        
+        session.is_active = False
+        session.save()
+        
+        return JsonResponse({'status': 'success', 'message': 'Chat deleted successfully'})
+    return JsonResponse({'error': 'Invalid method'}, status=400)
 
 @login_required
 def get_session_messages(request, session_id):
