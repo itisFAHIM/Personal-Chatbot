@@ -39,7 +39,7 @@ class ChatSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    # NEW FIELD: Controls visibility (Soft Delete)
+    # Controls visibility Field
     is_active = models.BooleanField(default=True) 
 
     class Meta:
