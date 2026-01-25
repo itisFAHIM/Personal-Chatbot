@@ -101,6 +101,9 @@ from .rag import index_project_code
 from django.shortcuts import get_object_or_404
 import json
 from django.utils import timezone
+import base64
+import uuid
+from django.core.files.base import ContentFile
 
 @login_required
 def trigger_indexing(request):
@@ -124,30 +127,41 @@ def chat_api(request):
         user_message = data.get('message', '')
         session_id = data.get('session_id')
         image_data = data.get('image', None) 
-        # Get or create chat session
+
+        # (Session Creation Logic - Keep this the same)
         if not session_id:
             session = ChatSession.objects.create(user=request.user, title=user_message[:30])
             session_id = str(session.session_id)
         else:
             session = get_object_or_404(ChatSession, session_id=session_id, user=request.user)
 
-        # Save User Message
-        ChatMessage.objects.create(session=session, role='user', content=user_message)
+        # --- SAVE USER MESSAGE (WITH IMAGE) ---
+        msg = ChatMessage.objects.create(session=session, role='user', content=user_message)
+        
+        if image_data:
+            try:
+                # Decode the Base64 image and save it to the file system
+                format, imgstr = image_data.split(';base64,') if ';base64,' in image_data else (None, image_data)
+                ext = 'png' # Default to png
+                data = ContentFile(base64.b64decode(imgstr), name=f'{session.session_id}_{uuid.uuid4()}.{ext}')
+                msg.image = data
+                msg.save()
+            except Exception as e:
+                print(f"Error saving image: {e}")
 
-        # Retrieve History
+        # Retrieve History (Same as before)
         history = [{'role': msg.role, 'content': msg.content} for msg in session.messages.all().order_by('created_at')[:10]]
 
         def event_stream():
-            # Send Session ID first
             yield json.dumps({'session_id': session_id}) + "\n"
-            
             full_response = ""
-            # PASS IMAGE DATA TO AI LOGIC
+            
+            # Use get_korbi_response_stream (Make sure to import it!)
             for chunk in get_korbi_response_stream(user_message, history, image_data):
                 full_response += chunk
                 yield chunk
             
-            # Save AI Response
+            # Save Assistant Response
             ChatMessage.objects.create(session=session, role='assistant', content=full_response)
             session.updated_at = timezone.now()
             session.save()
@@ -181,21 +195,13 @@ def delete_chat_session(request, session_id):
 
 @login_required
 def get_session_messages(request, session_id):
-    try:
-        session = ChatSession.objects.get(session_id=session_id, user=request.user)
-        messages = session.messages.all()
-        messages_data = [
-            {
-                'role': msg.role,
-                'content': msg.content,
-                'created_at': msg.created_at.isoformat()
-            }
-            for msg in messages
-        ]
-        return JsonResponse({
-            'session_id': str(session.session_id),
-            'title': session.title,
-            'messages': messages_data
-        })
-    except ChatSession.DoesNotExist:
-        return JsonResponse({'error': 'Session not found'}, status=404)
+    session = get_object_or_404(ChatSession, session_id=session_id, user=request.user)
+    messages_data = [
+        {
+            'role': msg.role, 
+            'content': msg.content,
+            'image_url': msg.image.url if msg.image else None # SEND IMAGE URL TO FRONTEND
+        } 
+        for msg in session.messages.all()
+    ]
+    return JsonResponse({'messages': messages_data})

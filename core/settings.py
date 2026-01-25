@@ -122,3 +122,10 @@ STATIC_URL = 'static/'
 
 LOGIN_REDIRECT_URL = 'chat_home'  
 LOGOUT_REDIRECT_URL = 'login'
+
+# core/settings.py (Add to bottom)
+
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

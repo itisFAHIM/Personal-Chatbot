@@ -1319,12 +1319,13 @@
                     if (item.dataset.sessionId === sessionId) item.classList.add('active');
                 });
                 
-                data.messages.forEach(msg => addMessageToUI(msg.role, msg.content));
+                // UPDATED LINE: Pass msg.image_url
+                data.messages.forEach(msg => addMessageToUI(msg.role, msg.content, msg.image_url));
+                
                 chatMessages.scrollTop = chatMessages.scrollHeight;
                 if (window.innerWidth <= 768) toggleSidebar();
             } catch (error) { console.error('Error loading session:', error); }
         }
-
         function newChat() {
             currentSessionId = null;
             document.getElementById('chat-messages').innerHTML = `

@@ -48,10 +48,25 @@ class ChatSession(models.Model):
     def __str__(self):
         return f"{self.title} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
+# class ChatMessage(models.Model):
+#     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
+#     role = models.CharField(max_length=20)   
+#     content = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
+    
+#     class Meta:
+#         ordering = ['created_at']
+    
+#     def __str__(self):
+#         return f"{self.role}: {self.content[:50]}"
 class ChatMessage(models.Model):
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
     role = models.CharField(max_length=20)   
     content = models.TextField()
+    
+    # NEW FIELD
+    image = models.ImageField(upload_to='chat_images/', null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
