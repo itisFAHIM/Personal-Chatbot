@@ -100,6 +100,7 @@ from .models import ChatSession, ChatMessage
 from .rag import index_project_code
 from django.shortcuts import get_object_or_404
 import json
+from django.utils import timezone
 
 @login_required
 def trigger_indexing(request):
@@ -118,58 +119,40 @@ def chat_home(request):
 
 @login_required
 def chat_api(request):
-    """
-    Handles the chat logic with Streaming Response.
-    """
-    if request.method == "POST":
+    if request.method == 'POST':
         data = json.loads(request.body)
-        user_message = data.get('message')
+        user_message = data.get('message', '')
         session_id = data.get('session_id')
-        
-        # 1. Get/Create Session
-        session = None
-        if session_id:
-            try:
-                session = ChatSession.objects.get(session_id=session_id, user=request.user)
-            except ChatSession.DoesNotExist:
-                session = None
-        
-        if not session:
-            # Create new session linked to the current user
-            session = ChatSession.objects.create(user=request.user)
+        image_data = data.get('image', None) 
+        # Get or create chat session
+        if not session_id:
+            session = ChatSession.objects.create(user=request.user, title=user_message[:30])
+            session_id = str(session.session_id)
+        else:
+            session = get_object_or_404(ChatSession, session_id=session_id, user=request.user)
 
-        # 2. Save User Message immediately
+        # Save User Message
         ChatMessage.objects.create(session=session, role='user', content=user_message)
 
-        # 3. Get History
-        messages = session.messages.all()
-        history = [{'role': msg.role, 'content': msg.content} for msg in messages]
+        # Retrieve History
+        history = [{'role': msg.role, 'content': msg.content} for msg in session.messages.all().order_by('created_at')[:10]]
 
-        # 4. Generate Title if new
-        if session.title == "New Chat":
-            title = ' '.join(user_message.split()[:5])
-            if len(user_message.split()) > 5: title += "..."
-            session.title = title
+        def event_stream():
+            # Send Session ID first
+            yield json.dumps({'session_id': session_id}) + "\n"
+            
+            full_response = ""
+            # PASS IMAGE DATA TO AI LOGIC
+            for chunk in get_korbi_response_stream(user_message, history, image_data):
+                full_response += chunk
+                yield chunk
+            
+            # Save AI Response
+            ChatMessage.objects.create(session=session, role='assistant', content=full_response)
+            session.updated_at = timezone.now()
             session.save()
 
-        # 5. Define the Streaming Generator
-        def stream_response():
-            full_response = ""
-            # Yield the session ID first so the frontend knows where we are
-            yield json.dumps({'session_id': str(session.session_id), 'title': session.title}) + "\n"
-            
-            # Stream the AI content
-            for chunk in get_korbi_response_stream(user_message, history):
-                full_response += chunk
-                yield chunk # Send chunk to browser
-            
-            # 6. Save AI Message to DB after stream ends
-            ChatMessage.objects.create(session=session, role='assistant', content=full_response)
-
-        return StreamingHttpResponse(stream_response(), content_type='text/plain')
-
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-# Add these endpoints if you haven't already, so the sidebar works:
+        return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
 
 @login_required
 def get_chat_sessions(request):
