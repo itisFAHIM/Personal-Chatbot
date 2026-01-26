@@ -98,12 +98,16 @@ from django.contrib.auth.decorators import login_required
 from .ai_logic import get_korbi_response_stream
 from .models import ChatSession, ChatMessage
 from .rag import index_project_code
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect  
 import json
 from django.utils import timezone
 import base64
 import uuid
 from django.core.files.base import ContentFile
+from django.contrib.auth import login                            
+from django.contrib.auth.forms import UserCreationForm
+from django.shortcuts import render, redirect
+
 
 @login_required
 def trigger_indexing(request):
@@ -205,3 +209,14 @@ def get_session_messages(request, session_id):
         for msg in session.messages.all()
     ]
     return JsonResponse({'messages': messages_data})
+
+def signup(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user) # Log user in immediately
+            return redirect('home')
+    else:
+        form = UserCreationForm()
+    return render(request, 'registration/signup.html', {'form': form})
