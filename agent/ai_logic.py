@@ -196,7 +196,7 @@ def get_korbi_response_stream(user_message, history, image_data=None):
         for filename in files_to_read:
             manual_context += f"\n\n--- FILE: {filename} ---\n{read_local_file(filename)}\n"
 
-    # Only do RAG search if it's text-only
+    # for RAG search
     rag_context = ""
     if not image_data and not files_to_read and len(user_message) > 15:
         try:
@@ -210,10 +210,10 @@ def get_korbi_response_stream(user_message, history, image_data=None):
     final_user_message = f"{full_context}\n\nUSER QUESTION:\n{user_message}" if full_context else user_message
 
     # --- 2. MODEL SELECTION & OPTIONS ---
-    options = {} # Default: No limits
+    options = {} 
     
     if image_data:
-        # === VISION MODE (LLaVA) ===
+        # VISION MODE (LLaVA) 
         model_name = 'llava:7b'
         system_instruction = """You are FAHIM_Code_Korbi, an expert AI developer.
         RULES:
@@ -228,17 +228,16 @@ def get_korbi_response_stream(user_message, history, image_data=None):
         messages = [{'role': 'system', 'content': system_instruction}] + history + [user_msg_payload]
 
     else:
-        # === CODING MODE (DeepSeek R1:8b) ===
+        # CODING and thinking mode (DeepSeek R1:8b)
         model_name = 'deepseek-r1:8b'
         
-        # 1. SAFETY OPTIONS (Prevents GPU Crash)
+        # 1. GPU Usage controlling
         options = {
             "num_ctx": 2048, 
             "num_gpu": 99     
         }
         
-        # 2. FORCE THINKING RULE (Restores the Purple Box)
-        # DeepSeek sometimes hides thoughts unless we demand them.
+        # 2. FORCE THINKING RULE
         system_rule = {
             'role': 'system', 
             'content': "You are a deep reasoning model. You MUST always output your internal thought process inside <think>...</think> tags before generating your final response."

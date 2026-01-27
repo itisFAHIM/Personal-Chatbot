@@ -2,7 +2,7 @@ import os
 from django.conf import settings
 
 def read_local_file(file_path):
-    # Security check: Only allow reading files in your project directory
+    # Security check: Only allow reading files in the project directory
     base_dir = settings.BASE_DIR
     full_path = os.path.join(base_dir, file_path)
     

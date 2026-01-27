@@ -132,35 +132,35 @@ def chat_api(request):
         session_id = data.get('session_id')
         image_data = data.get('image', None) 
 
-        # (Session Creation Logic - Keep this the same)
+        # (Session Creation Logic)
         if not session_id:
             session = ChatSession.objects.create(user=request.user, title=user_message[:30])
             session_id = str(session.session_id)
         else:
             session = get_object_or_404(ChatSession, session_id=session_id, user=request.user)
 
-        # --- SAVE USER MESSAGE (WITH IMAGE) ---
+        # SAVE USER MESSAGE
         msg = ChatMessage.objects.create(session=session, role='user', content=user_message)
         
         if image_data:
             try:
                 # Decode the Base64 image and save it to the file system
                 format, imgstr = image_data.split(';base64,') if ';base64,' in image_data else (None, image_data)
-                ext = 'png' # Default to png
+                ext = 'png'
                 data = ContentFile(base64.b64decode(imgstr), name=f'{session.session_id}_{uuid.uuid4()}.{ext}')
                 msg.image = data
                 msg.save()
             except Exception as e:
                 print(f"Error saving image: {e}")
 
-        # Retrieve History (Same as before)
+        # Retrieve History
         history = [{'role': msg.role, 'content': msg.content} for msg in session.messages.all().order_by('created_at')[:10]]
 
         def event_stream():
             yield json.dumps({'session_id': session_id}) + "\n"
             full_response = ""
             
-            # Use get_korbi_response_stream (Make sure to import it!)
+            
             for chunk in get_korbi_response_stream(user_message, history, image_data):
                 full_response += chunk
                 yield chunk
@@ -204,7 +204,7 @@ def get_session_messages(request, session_id):
         {
             'role': msg.role, 
             'content': msg.content,
-            'image_url': msg.image.url if msg.image else None # SEND IMAGE URL TO FRONTEND
+            'image_url': msg.image.url if msg.image else None 
         } 
         for msg in session.messages.all()
     ]
@@ -215,7 +215,7 @@ def signup(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user) # Log user in immediately
+            login(request, user) 
             return redirect('home')
     else:
         form = UserCreationForm()

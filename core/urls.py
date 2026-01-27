@@ -18,7 +18,6 @@
 #     path('api/sessions/<uuid:session_id>/delete/', delete_chat_session, name='delete_chat_session'),
 #     path('api/index-codebase/', trigger_indexing, name='trigger_indexing'),
 
-#     # Auth URLs
 #     path('accounts/signup/', signup, name='signup'),
 # ]
 
@@ -36,13 +35,9 @@ from agent.views import chat_home, chat_api, get_chat_sessions, get_session_mess
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', chat_home, name='home'),
-    
-    # --- THIS LINE FIXES YOUR ERROR ---
+
     path('accounts/signup/', signup, name='signup'),
-    
     path('accounts/', include('django.contrib.auth.urls')),
-    
-    # API URLs
     path('api/chat/', chat_api, name='chat_api'),
     path('api/sessions/', get_chat_sessions, name='get_chat_sessions'),
     path('api/sessions/<uuid:session_id>/', get_session_messages, name='get_session_messages'),
